@@ -1,5 +1,11 @@
 from helpers import Target
 
-obj = Target("sample.jpg")
 
-obj.display(obj.edgeDetection(obj.grayscale))
+obj = Target()
+
+while(obj.run):
+    obj.update()
+
+    if obj.key_cap == ord('q'):
+        obj.cleanup()
+

@@ -1,2 +1,5 @@
-from .helpers import *
+try:
+    from .helpers import *
+except ImportError:
+    pass
 
