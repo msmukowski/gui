@@ -32,6 +32,8 @@ class Target:
         self.key_cap = cv.waitKey(1)
 
     def edge_detection(self):
+        '''Finds the outlines of objects in an image and draws them.
+        According to its shape, it indicates whether it is round'''
         contours, _ = cv.findContours(self.mask, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
 
         for contour in contours:
@@ -76,6 +78,7 @@ class Target:
         self.calibrate = cv.getTrackbarPos('Calibrate', self.window_name)
 
     def green_mask(self, obj):
+        '''Creates green mask of an image'''
         blur = cv.GaussianBlur(obj, (5,5), 0)
         hsv = cv.cvtColor(blur, cv.COLOR_BGR2HSV)
 
@@ -84,5 +87,6 @@ class Target:
         self.mask = cv.inRange(hsv, lower_green, higher_green)
 
     def info(self):
+        '''Displays info on top of the interface'''
         cv.putText(self.result, "Press 'q' to exit", (int(self.width*0.93),int(self.height*0.73)),
                    cv.FONT_HERSHEY_DUPLEX, 0.7, (0, 0, 0), 1)
