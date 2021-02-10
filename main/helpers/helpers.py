@@ -4,59 +4,60 @@ import numpy as np
 
 class Target:
     def __init__(self) -> None:
+        '''Initialize new Target class instance'''
+        # camera settings
         self.run = True
         self.camera = cv.VideoCapture(0, cv.CAP_DSHOW)
         self.key_cap = ord('s')
+        # work images and its parameters
         self.image = self.camera.read()[1]
         self.result = self.image.copy()
-        self.grayscale = cv.cvtColor(self.image,cv.COLOR_BGR2GRAY)
-        self.width, self.height = self.grayscale.shape
+        self.mask = self.image.copy()
+        self.hsv = cv.cvtColor(self.image,cv.COLOR_BGR2HSV)
+        self.width, self.height = self.image.shape[:2]
+        # gui window parameters
         self.window_name = 'GUI'
         self.window = cv.namedWindow(self.window_name)
+        # calibration trackbar
         self.calibrate, _ = 0, cv.createTrackbar('Calibrate', self.window_name,0,1,self.on_trackbar)
         cv.setTrackbarMin('Calibrate',self.window_name,0), cv.setTrackbarPos('Calibrate',self.window_name,0)
-        self.tb_thresh, _ = 11, cv.createTrackbar('Threshold', self.window_name,0,255,self.on_trackbar)
-        cv.setTrackbarMin('Threshold',self.window_name,1), cv.setTrackbarPos('Threshold',self.window_name,1)
-        self.edges = np.zeros((self.width, self.height,1), np.uint8)
-        self.sensitivity = 18
+        # sensivity trackbar
+        self.sensitivity, _ = 18, cv.createTrackbar('Sensitivity', self.window_name,0,40,self.on_trackbar)
+        cv.setTrackbarMax('Sensitivity',self.window_name,40), cv.setTrackbarPos('Sensitivity',self.window_name,18)
+        # other parameters
+        self.target_min_area = 700
 
     def display(self, obj):
         cv.imshow(self.window_name, obj)
-        self.key_cap = cv.waitKey(100)
+        self.key_cap = cv.waitKey(1)
 
-    def edge_detection(self, obj):
-        kernel_opening = np.ones((15, 15), np.float32)
-        kernel_closure = np.ones((3,3), np.float32)
-        #blur = cv.bilateralFilter(obj, 16, 75, 75)
-        #blur = cv.medianBlur(blur,15)
-        blur = cv.GaussianBlur(obj,(9,9),1.5)
-        #threshold = cv.adaptiveThreshold(blur,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY,1+2*self.tb_thresh,2)
-        #opening = cv.morphologyEx(blur,cv.MORPH_OPEN, kernel_opening)
-        #closure = cv.morphologyEx(opening,cv.MORPH_CLOSE, kernel_closure)
-        #dilate = cv.dilate(blur,kernel_closure)
-        self.edges = cv.Canny(blur, 0, 50, 3)
-        #self.edges = cv.dilate(self.edges,kernel_closure)
+    def edge_detection(self):
+        contours, _ = cv.findContours(self.mask, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
 
-    def contours_detection(self):
-        contours, hierarchy = cv.findContours(self.edges, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
         for contour in contours:
-            #epsilon = 0.31 * cv.arcLength(contour, True)
-            #approx = cv.approxPolyDP(contour, epsilon, True)
-            hull =cv.convexHull(contour)
-            if cv.contourArea(contour) > 700:
-                cv.drawContours(self.result, [contour], -1,(0,0,255),thickness=6)
-                #print(f'Contour area: {cv.contourArea(contour)}')
+            area = cv.contourArea(contour)
+
+            if area > self.target_min_area:
+                cv.drawContours(self.result, [contour], -1, (255, 0, 0), 2)
+                peri = cv.arcLength(contour, True)
+                approx = cv.approxPolyDP(contour, 0.02 * peri, True)
+                x_, y_, w, h = cv.boundingRect(approx)
+                cv.rectangle(self.result, (x_, y_), (x_ + w, y_ + h), (0, 255, 255), 2)
+                ((x, y), radius) = cv.minEnclosingCircle(contour)
+
+                circle_check = int(area) / int(np.pi * np.power(radius, 2))
+
+                if circle_check > 0.8:
+                    cv.putText(self.result, "CIRCLE", (x_ + int(w / 4), y_ + int(h / 2)), cv.FONT_HERSHEY_SIMPLEX, 0.7,
+                               (0, 153, 255), 2)
 
     def update(self):
         _, frame = self.camera.read()
         self.result = frame.copy()
-        self.grayscale = cv.cvtColor(frame,cv.COLOR_BGR2GRAY)
         self.trackbar()
-        self.edge_detection(self.grayscale)
-        self.contours_detection()
-        #self.display(self.edges)
-        self.green(frame)
-        self.display(np.concatenate((self.result,cv.cvtColor(self.edges,cv.COLOR_GRAY2BGR)), axis=1))
+        self.green_mask(frame)
+        self.edge_detection()
+        self.info()
 
     def cleanup(self):
         self.run = False
@@ -68,35 +69,20 @@ class Target:
 
     def trackbar(self):
         if self.calibrate != 1:
-            cv.setTrackbarPos('Threshold',self.window_name,self.tb_thresh)
+            cv.setTrackbarPos('Sensitivity',self.window_name,self.sensitivity)
         else:
-            self.tb_thresh = cv.getTrackbarPos('Threshold', self.window_name)
-            self.sensitivity = self.tb_thresh
+            self.sensitivity = cv.getTrackbarPos('Sensitivity', self.window_name)
 
         self.calibrate = cv.getTrackbarPos('Calibrate', self.window_name)
 
-    def green(self, obj):
+    def green_mask(self, obj):
         blur = cv.GaussianBlur(obj, (5,5), 0)
         hsv = cv.cvtColor(blur, cv.COLOR_BGR2HSV)
 
         lower_green = np.array([68 - self.sensitivity, 100, 50])
         higher_green= np.array([68 + self.sensitivity, 255, 255])
-        mask = cv.inRange(hsv, lower_green, higher_green)
+        self.mask = cv.inRange(hsv, lower_green, higher_green)
 
-        contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
-
-        for contour in contours:
-            area = cv.contourArea(contour)
-
-            if area > 700:
-                cv.drawContours(self.result, [contour], -1, (255,0,0), 8)
-                peri = cv.arcLength(contour, True)
-                approx = cv.approxPolyDP(contour, 0.02 * peri, True)
-                x_, y_, w, h = cv.boundingRect(approx)
-                cv.rectangle(self.result,(x_,y_),(x_+w,y_+h),(0,255,255),5)
-                ((x,y), radius) = cv.minEnclosingCircle(contour)
-
-                circle_check = int(area) / int(np.pi * np.power(radius, 2))
-
-                if circle_check > 0.8:
-                    cv.putText(self.result, "CIRCLE", (x_+int(w/4),y_+int(h/2)), cv.FONT_HERSHEY_SIMPLEX, 0.7,(0,153,255),2)
+    def info(self):
+        cv.putText(self.result, "Press 'q' to exit", (int(self.width*0.93),int(self.height*0.73)), cv.FONT_HERSHEY_DUPLEX, 0.7,
+                   (0, 0, 0), 1)
