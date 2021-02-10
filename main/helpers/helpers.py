@@ -18,11 +18,11 @@ class Target:
         self.tb_thresh, _ = 11, cv.createTrackbar('Threshold', self.window_name,0,255,self.on_trackbar)
         cv.setTrackbarMin('Threshold',self.window_name,1), cv.setTrackbarPos('Threshold',self.window_name,1)
         self.edges = np.zeros((self.width, self.height,1), np.uint8)
-        self.sensitivity = 0
+        self.sensitivity = 18
 
     def display(self, obj):
         cv.imshow(self.window_name, obj)
-        self.key_cap = cv.waitKey(1)
+        self.key_cap = cv.waitKey(100)
 
     def edge_detection(self, obj):
         kernel_opening = np.ones((15, 15), np.float32)
@@ -43,9 +43,9 @@ class Target:
             #epsilon = 0.31 * cv.arcLength(contour, True)
             #approx = cv.approxPolyDP(contour, epsilon, True)
             hull =cv.convexHull(contour)
-            if cv.contourArea(contour) > 400:
-                cv.drawContours(self.result, contour, -1,(0,0,255),thickness=6)
-                print(f'Contour area: {cv.contourArea(contour)}')
+            if cv.contourArea(contour) > 700:
+                cv.drawContours(self.result, [contour], -1,(0,0,255),thickness=6)
+                #print(f'Contour area: {cv.contourArea(contour)}')
 
     def update(self):
         _, frame = self.camera.read()
@@ -79,8 +79,8 @@ class Target:
         blur = cv.GaussianBlur(obj, (5,5), 0)
         hsv = cv.cvtColor(blur, cv.COLOR_BGR2HSV)
 
-        lower_green = np.array([60 - self.sensitivity, 100, 100])
-        higher_green= np.array([60 + self.sensitivity, 255, 255])
+        lower_green = np.array([68 - self.sensitivity, 100, 50])
+        higher_green= np.array([68 + self.sensitivity, 255, 255])
         mask = cv.inRange(hsv, lower_green, higher_green)
 
         contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
@@ -88,5 +88,15 @@ class Target:
         for contour in contours:
             area = cv.contourArea(contour)
 
-            if area > 100:
-                cv.drawContours(self.result, [contour], -1, (255,0,0), -1)
+            if area > 700:
+                cv.drawContours(self.result, [contour], -1, (255,0,0), 8)
+                peri = cv.arcLength(contour, True)
+                approx = cv.approxPolyDP(contour, 0.02 * peri, True)
+                x_, y_, w, h = cv.boundingRect(approx)
+                cv.rectangle(self.result,(x_,y_),(x_+w,y_+h),(0,255,255),5)
+                ((x,y), radius) = cv.minEnclosingCircle(contour)
+
+                circle_check = int(area) / int(np.pi * np.power(radius, 2))
+
+                if circle_check > 0.8:
+                    cv.putText(self.result, "CIRCLE", (x_+int(w/4),y_+int(h/2)), cv.FONT_HERSHEY_SIMPLEX, 0.7,(0,153,255),2)
