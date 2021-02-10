@@ -1,10 +1,10 @@
-# Recruitment task
+# GUI
 
 [![image](https://img.shields.io/badge/python-3.7.0-blue.svg)]()
 [![image](https://img.shields.io/badge/status-stable-brightgreen.svg)]()
 [![image](https://img.shields.io/badge/version-1.0.0-informational)]()
 
-### Recruitment task, the aim of which was to create a simple **GUI** that allows you to read the image from the **camera** and analyze it - detecting green objects along with identifying them in the image and determining whether they are round.
+### Application, the aim of which was to create a simple **GUI** that allows you to read the image from the **camera** and analyze it - detecting green objects along with identifying them in the image and determining whether they are round.
 
 ## Functions
 
