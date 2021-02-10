@@ -84,5 +84,5 @@ class Target:
         self.mask = cv.inRange(hsv, lower_green, higher_green)
 
     def info(self):
-        cv.putText(self.result, "Press 'q' to exit", (int(self.width*0.93),int(self.height*0.73)), cv.FONT_HERSHEY_DUPLEX, 0.7,
-                   (0, 0, 0), 1)
+        cv.putText(self.result, "Press 'q' to exit", (int(self.width*0.93),int(self.height*0.73)),
+                   cv.FONT_HERSHEY_DUPLEX, 0.7, (0, 0, 0), 1)
